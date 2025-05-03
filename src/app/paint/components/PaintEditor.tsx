@@ -103,7 +103,7 @@ const PaintEditor: React.FC = () => {
   useEffect(() => {
     if (previewRef.current) {
       const ctx = previewRef.current.getContext('2d');
-      ctx && ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+      if (ctx) ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
     }
   }, [shapePreview, tool, activeLayer]);
 
