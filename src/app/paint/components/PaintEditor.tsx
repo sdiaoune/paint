@@ -73,7 +73,7 @@ const PaintEditor: React.FC = () => {
   const layerRefs = useRef<{ [id: number]: HTMLCanvasElement | null }>({});
   const previewRef = useRef<HTMLCanvasElement | null>(null);
   const nextLayerId = useRef(2);
-  const [layerImages, setLayerImages] = useState<{ [id: number]: ImageData | null }>({});
+  const layerImagesRef = useRef<{ [id: number]: ImageData | null }>({});
   const [undoStacks, setUndoStacks] = useState<{ [id: number]: ImageData[] }>({});
   const [fontSize, setFontSize] = useState(24);
   const [textInput, setTextInput] = useState('');
@@ -304,17 +304,45 @@ const PaintEditor: React.FC = () => {
     setTextPos(null);
   };
 
-  // Layer controls
+  // Save image data for all visible layers
+  const saveAllVisibleLayerImages = () => {
+    layers.forEach((layer) => {
+      if (layer.visible && layerRefs.current[layer.id]) {
+        const ctx = layerRefs.current[layer.id]?.getContext('2d');
+        if (ctx) {
+          layerImagesRef.current[layer.id] = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
+        }
+      }
+    });
+  };
+
+  // Restore image data for a layer when it becomes visible and canvas is mounted
+  useEffect(() => {
+    layers.forEach((layer) => {
+      if (
+        layer.visible &&
+        layerImagesRef.current[layer.id] &&
+        layerRefs.current[layer.id]
+      ) {
+        const ctx = layerRefs.current[layer.id]?.getContext('2d');
+        if (ctx) {
+          ctx.putImageData(layerImagesRef.current[layer.id]!, 0, 0);
+          layerImagesRef.current[layer.id] = null;
+        }
+      }
+    });
+  }, [layers, layerRefs.current]);
+
+  // Wrap all layer operations to save/restore images
   const addLayer = () => {
+    saveAllVisibleLayerImages();
     const id = nextLayerId.current++;
-    setLayers((prev) => [
-      ...prev,
-      { id, name: `Layer ${id}`, visible: true },
-    ]);
+    setLayers((prev) => [...prev, { id, name: `Layer ${id}`, visible: true }]);
     setActiveLayer(id);
   };
 
   const deleteLayer = (id: number) => {
+    saveAllVisibleLayerImages();
     setLayers((prev) => prev.filter((l) => l.id !== id));
     if (activeLayer === id && layers.length > 1) {
       const idx = layers.findIndex((l) => l.id === id);
@@ -324,50 +352,23 @@ const PaintEditor: React.FC = () => {
   };
 
   const moveLayer = (id: number, dir: 'up' | 'down') => {
+    saveAllVisibleLayerImages();
     setLayers((prev) => {
       const idx = prev.findIndex((l) => l.id === id);
+      let newArr = [...prev];
       if (dir === 'up' && idx > 0) {
-        const newArr = [...prev];
         [newArr[idx - 1], newArr[idx]] = [newArr[idx], newArr[idx - 1]];
-        return newArr;
       } else if (dir === 'down' && idx < prev.length - 1) {
-        const newArr = [...prev];
         [newArr[idx + 1], newArr[idx]] = [newArr[idx], newArr[idx + 1]];
-        return newArr;
       }
-      return prev;
+      return newArr;
     });
   };
 
   const toggleLayerVisibility = (id: number) => {
-    setLayers((prev) =>
-      prev.map((l) => (l.id === id ? { ...l, visible: !l.visible } : l))
-    );
-    const layer = layers.find((l) => l.id === id);
-    const canvas = layerRefs.current[id];
-    if (layer && layer.visible && canvas) {
-      // About to hide: save image data
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        setLayerImages((prev) => ({ ...prev, [id]: img }));
-      }
-    }
+    saveAllVisibleLayerImages();
+    setLayers((prev) => prev.map((l) => (l.id === id ? { ...l, visible: !l.visible } : l)));
   };
-
-  // Restore image data when showing a layer
-  useEffect(() => {
-    layers.forEach((layer) => {
-      if (layer.visible && layerImages[layer.id] && layerRefs.current[layer.id]) {
-        const ctx = layerRefs.current[layer.id]?.getContext('2d');
-        if (ctx) {
-          ctx.putImageData(layerImages[layer.id]!, 0, 0);
-          setLayerImages((prev) => ({ ...prev, [layer.id]: null }));
-        }
-      }
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layers]);
 
   // Export merged image as PNG
   const exportAsPNG = () => {
