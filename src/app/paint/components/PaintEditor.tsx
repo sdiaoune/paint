@@ -88,16 +88,16 @@ const PaintEditor: React.FC = () => {
   const [resizeStart, setResizeStart] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const canvasAreaRef = useRef<HTMLDivElement | null>(null);
 
-  // Clear all canvases on mount
+  // Clear all canvases on mount and when layers change
   useEffect(() => {
     layers.forEach((layer) => {
       const canvas = layerRefs.current[layer.id];
       if (canvas) {
         const ctx = canvas.getContext('2d');
-        ctx && ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
       }
     });
-  }, []);
+  }, [layers]);
 
   // Clear preview canvas
   useEffect(() => {
@@ -181,7 +181,7 @@ const PaintEditor: React.FC = () => {
     }
   };
 
-  const handleMouseUp = (e: React.MouseEvent) => {
+  const handleMouseUp = () => {
     if (tool === 'rectangle' || tool === 'circle') {
       if (drawing && shapeStart && shapePreview) {
         const canvas = layerRefs.current[activeLayer];
@@ -633,6 +633,7 @@ const PaintEditor: React.FC = () => {
               }}
               onMouseDown={handleImgMouseDown}
             >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={imgUrl || importedImg.src}
                 style={{ width: '100%', height: '100%', pointerEvents: 'none', display: 'block' }}
