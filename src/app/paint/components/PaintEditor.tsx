@@ -331,7 +331,7 @@ const PaintEditor: React.FC = () => {
         }
       }
     });
-  }, [layers, layerRefs.current]);
+  }, [layers]);
 
   // Wrap all layer operations to save/restore images
   const addLayer = () => {
@@ -355,7 +355,7 @@ const PaintEditor: React.FC = () => {
     saveAllVisibleLayerImages();
     setLayers((prev) => {
       const idx = prev.findIndex((l) => l.id === id);
-      let newArr = [...prev];
+      const newArr = [...prev];
       if (dir === 'up' && idx > 0) {
         [newArr[idx - 1], newArr[idx]] = [newArr[idx], newArr[idx - 1]];
       } else if (dir === 'down' && idx < prev.length - 1) {
